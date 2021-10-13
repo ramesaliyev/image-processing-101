@@ -24,7 +24,7 @@ def read(name):
     maxval = data[2]
     pixels = data[3:]
     
-    return (np.array(pixels), (height, width), maxval)
+    return (pixels, (height, width), maxval)
 
 def show(pgm, cmap='gray'):
     image, dims, vmax = pgm

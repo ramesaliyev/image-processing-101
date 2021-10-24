@@ -42,12 +42,20 @@
  * (1) Data types and structures.
  */
 typedef struct PGM PGM;
+typedef struct Kernel Kernel;
 typedef uint8_t Pixel;
+typedef uint8_t Cell;
 
 struct PGM {
   char* type;
   Pixel* pixels;
   int maxValue;
+  int width;
+  int height;
+};
+
+struct Kernel {
+  Cell* cells;
   int width;
   int height;
 };
@@ -241,17 +249,59 @@ void freePGM(PGM* pgm) {
 }
 
 /**
- * (4) Kernel-Image Operations
+ * (4) Kernel Operations
  */
-void apply_kernel() {
+Kernel* createKernel(int width, int height) {
+  Kernel* kernel = (Kernel*) malloc(sizeof(Kernel));
 
+  if (kernel == NULL) {
+    printf("Error: Could not allocate memory for Kernel.");
+    return NULL;
+  }
+
+  kernel->cells = (Cell*) calloc(width * height, sizeof(Cell));
+
+  if (kernel->cells == NULL) {
+    printf("Error: Could not allocate memory for Kernel cells.");
+    return NULL;
+  }
+
+  kernel->width = width;
+  kernel->height = height;
+
+  return kernel;
+}
+
+void freeKernel(Kernel* kernel) {
+  free(kernel->cells);
+  free(kernel);
+}
+
+PGM* applyKernel(PGM* input, Kernel* kernel) {
+  PGM* output = createPGM(input->type, input->maxValue, input->width, input->height);
+
+  // printf("\n%d %d %d\n%d %d %d\n%d %d %d\n\n",
+  //   kernel->cells[0], kernel->cells[1], kernel->cells[2],
+  //   kernel->cells[3], kernel->cells[4], kernel->cells[5],
+  //   kernel->cells[6], kernel->cells[7], kernel->cells[8] 
+  // );
+
+  return output;
 }
 
 /**
  * (5) Filter Operations
  */
-void apply_sobel_filter() {
+PGM* applySobelFilter(PGM* input) {
+  // Create and fill kernel
+  Kernel* kernel = createKernel(3, 3);
+  Cell cells[9] = {1,2,3,4,5,6,7,8,9};
+  memcpy(kernel->cells, cells, 9 * sizeof(Cell));
 
+  PGM* output = applyKernel(input, kernel);
+  freeKernel(kernel);
+
+  return output;
 }
 
 /**
@@ -274,13 +324,16 @@ void menu_sobel() {
     output = DEFUALT_OUTPUT_NAME;
   }
 
-  PGM* pgm = readPGM(input);
-  if (pgm == NULL) return;
+  PGM* pgm_input = readPGM(input);
+  if (pgm_input == NULL) return;
 
-  apply_sobel_filter(pgm);
+  PGM* pgm_output = applySobelFilter(pgm_input);
+  if (pgm_output != NULL) {
+    writePGM(pgm_output, output);
+    freePGM(pgm_output);
+  };
 
-  writePGM(pgm, output);
-  freePGM(pgm);
+  freePGM(pgm_input);
 
   printf("-> Sobel filter successfully applied to %s and result saved to %s\n", input, output);
 }

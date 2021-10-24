@@ -9,7 +9,7 @@
  * README
  * 
  * - Both P5 and P2 format supported as input.
- * - Output file of will be in it's original format.
+ * - Output file will be in it's original format.
  *   For example if your original PGM was P2, output PGM will
  *   be in P2 format (and vice-versa). 
  * 
@@ -20,9 +20,9 @@
  * (1) Data types and structures.
  * (2) Common generic utilities.
  * (3) PGM related functions.
- * (4) 
- * (5) 
- * (6) Interface operations
+ * (4) Kernel-Image Operations
+ * (5) Filter Operations
+ * (6) Menu operations
  * (7) Main
  */
 
@@ -72,6 +72,26 @@ FILE* openFile(char* filename, char* as) {
     return NULL;
   };
   return file;
+}
+
+char* scanLine() {
+  char* input = mallocstr(LINESIZE);
+  fgets(input, LINESIZE, stdin);
+
+  if (input[strlen(input)-1] != NLCHR) {
+    int ch;
+    while (((ch = getchar()) != NLCHR) && (ch != EOF));
+  }
+
+  if (strcmp(input, NLSTR) == 0) {
+    strcpy(input, "");
+  } else if (strcmp(input, " \n") == 0) {
+    strcpy(input, "");
+  } else {
+    input[strcspn(input, "\r\n")] = 0;
+  }
+
+  return input;
 }
 
 /**
@@ -221,46 +241,56 @@ void freePGM(PGM* pgm) {
 }
 
 /**
- * (4) 
+ * (4) Kernel-Image Operations
  */
+void apply_kernel() {
+
+}
 
 /**
- * (5) 
+ * (5) Filter Operations
  */
+void apply_sobel_filter() {
+
+}
 
 /**
- * (6) Interface operations
+ * (6) Menu operations
  */
-char* scanLine() {
-  char* input = mallocstr(LINESIZE);
-  fgets(input, LINESIZE, stdin);
+void print_incorrect_args() {
+  printf("Error: Incorrect arguments, please check your arguments, type 'help' to see usages!\n");
+}
 
-  if (input[strlen(input)-1] != NLCHR) {
-    int ch;
-    while (((ch = getchar()) != NLCHR) && (ch != EOF));
+void menu_sobel() {
+  char* input = strtok(NULL, " ");
+  char* output = strtok(NULL, " ");
+
+  if (input == NULL) {
+    print_incorrect_args();
+    return;
   }
 
-  if (strcmp(input, NLSTR) == 0) {
-    strcpy(input, "");
-  } else if (strcmp(input, " \n") == 0) {
-    strcpy(input, "");
-  } else {
-    input[strcspn(input, "\r\n")] = 0;
+  if (output == NULL) {
+    output = DEFUALT_OUTPUT_NAME;
   }
 
-  return input;
+  PGM* pgm = readPGM(input);
+  if (pgm == NULL) return;
+
+  apply_sobel_filter(pgm);
+
+  writePGM(pgm, output);
+  freePGM(pgm);
+
+  printf("-> Sobel filter successfully applied to %s and result saved to %s\n", input, output);
 }
 
 void help() {
   printf("---------------------------------------------------------------------------------------------------------------\n");
-  printf("$ %-45s %s\n", "blur <input.pgm> [<output.cpgm>]", "- will blur pgm (default output = "DEFUALT_OUTPUT_NAME")");
+  printf("$ %-45s %s\n", "sobel <input.pgm> [<output.cpgm>]", "- will use sobel filter to detect edges in input pgm (default output = "DEFUALT_OUTPUT_NAME")");
   printf("$ %-45s %s\n", "help", "- display this message");
   printf("$ %-45s %s\n", "exit", "- exit from program");
   printf("---------------------------------------------------------------------------------------------------------------\n");
-}
-
-void print_incorrect_args() {
-  printf("Error: Incorrect arguments, please check your arguments, type 'help' to see usages!\n");
 }
 
 /**
@@ -268,7 +298,7 @@ void print_incorrect_args() {
  */
 int main() {
   printf("-------------------------------------\n");
-  printf("Welcome to PGM Lemonizer 2021\n");
+  printf("Welcome to YTU Improc 2021\n");
   printf("Available commands are listed bellow:\n");
   help();
   
@@ -279,20 +309,8 @@ int main() {
     if (strcmp(line, "") != 0) {
       char* cmd = strtok(line, " ");
 
-      if (strcmp(cmd, "compress") == 0) {
-        menu_compress();
-      } else if (strcmp(cmd, "decompress") == 0) {
-        menu_decompress();
-      } else if (strcmp(cmd, "replacecolor") == 0) {
-        menu_replacecolor();
-      } else if (strcmp(cmd, "setcolor") == 0) {
-        menu_setcolor();
-      } else if (strcmp(cmd, "histogram") == 0) {
-        menu_histogram();
-      } else if (strcmp(cmd, "print") == 0) {
-        menu_print();
-      } else if (strcmp(cmd, "convert") == 0) {
-        menu_convert();
+      if (strcmp(cmd, "sobel") == 0) {
+        menu_sobel();
       } else if (strcmp(cmd, "help") == 0) {
         help();
       } else if (strcmp(cmd, "exit") == 0) {

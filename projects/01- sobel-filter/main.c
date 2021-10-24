@@ -43,8 +43,8 @@
  */
 typedef struct PGM PGM;
 typedef struct Kernel Kernel;
-typedef uint8_t Pixel;
-typedef uint8_t Cell;
+typedef int Pixel;
+typedef int Cell;
 
 struct PGM {
   char* type;
@@ -278,14 +278,33 @@ void freeKernel(Kernel* kernel) {
 }
 
 PGM* applyKernel(PGM* input, Kernel* kernel) {
-  PGM* output = createPGM(input->type, input->maxValue, input->width, input->height);
+  int in_width = input->width;
+  int in_height = input->height;
+  int ker_size = kernel->width;
+  int ker_margin = ker_size - 1;
+  int out_width = in_width - ker_margin;
+  int out_height = in_height - ker_margin;
 
-  // printf("\n%d %d %d\n%d %d %d\n%d %d %d\n\n",
-  //   kernel->cells[0], kernel->cells[1], kernel->cells[2],
-  //   kernel->cells[3], kernel->cells[4], kernel->cells[5],
-  //   kernel->cells[6], kernel->cells[7], kernel->cells[8] 
-  // );
+  PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
+  
+  int r, c, x, y; // multi-dimensional indexes.
 
+  for (r = 0; r < out_height; r++) {
+    for (c = 0; c < out_width; c++) {
+      for (y = 0; y < ker_size; y++) {
+        for (x = 0; x < ker_size; x++) {
+          int i_out = (r * out_width) + c;
+          int i_ker = (y * ker_size) + x;
+          int i_in = ((r + y) * in_width) + c + x;
+
+          printf("%d %d %d\n", i_out, i_in, i_ker);
+
+          output->pixels[i_out] += input->pixels[i_in] * kernel->cells[i_ker];
+        }
+      }
+    }  
+  }
+ 
   return output;
 }
 
@@ -295,8 +314,18 @@ PGM* applyKernel(PGM* input, Kernel* kernel) {
 PGM* applySobelFilter(PGM* input) {
   // Create and fill kernel
   Kernel* kernel = createKernel(3, 3);
-  Cell cells[9] = {1,2,3,4,5,6,7,8,9};
+  Cell cells[9] = {
+    1,2,3,
+    4,5,6,
+    7,8,9
+  };
   memcpy(kernel->cells, cells, 9 * sizeof(Cell));
+
+  printf("\n%d %d %d\n%d %d %d\n%d %d %d\n\n",
+    kernel->cells[0], kernel->cells[1], kernel->cells[2],
+    kernel->cells[3], kernel->cells[4], kernel->cells[5],
+    kernel->cells[6], kernel->cells[7], kernel->cells[8] 
+  );
 
   PGM* output = applyKernel(input, kernel);
   freeKernel(kernel);

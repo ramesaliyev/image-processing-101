@@ -47,6 +47,3 @@ def pad_mirror(image):
 def apply_padding(image, padding, n):
     for i in range(n):
         padding(image)
-
-def create_average_kernel(size):
-    return array2d(size, size, 1/(size*size))

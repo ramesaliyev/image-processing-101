@@ -249,10 +249,17 @@ void writePGM(PGM* pgm, char* filepath) {
   writePGMWithType(pgm, filepath, pgm->type);
 }
 
+void freeProcessedPixels(PGM* pgm) {
+  if (pgm->processedPixels != NULL) {
+    free(pgm->processedPixels);
+    pgm->processedPixels = NULL;
+  }
+}
+
 void freePGM(PGM* pgm) {
   free(pgm->type);
   free(pgm->pixels);
-  free(pgm->processedPixels);
+  freeProcessedPixels(pgm);
   free(pgm);
 }
 
@@ -315,7 +322,7 @@ PGM* applyKernel(PGM* input, Kernel* kernel) {
   return output;
 }
 
-void applyMinMax(PGM* input) {
+void applyMinMaxNormalization(PGM* input) {
   int pixelCount = input->width * input->height;
   float min = input->processedPixels[0];
   float max = input->processedPixels[0];
@@ -334,7 +341,24 @@ void applyMinMax(PGM* input) {
   int j;
   for (j = 0; j < pixelCount; j++) {
     val = (float) input->processedPixels[j];
-    input->pixels[j] = (int) round((val - min) / range * maxColor);
+    input->pixels[j] = (Pixel) round((val - min) / range * maxColor);
+  }
+}
+
+void applyThresholdNormalization(PGM* input) {
+  int pixelCount = input->width * input->height;
+
+  int j, val;
+  for (j = 0; j < pixelCount; j++) {
+    val = input->processedPixels[j];
+
+    if (val > MAX_COLOR) {
+      input->pixels[j] = MAX_COLOR;
+    } else if (val < 0) {
+      input->pixels[j] = 0;
+    } else {
+      input->pixels[j] = (Pixel) val;
+    }
   }
 }
 
@@ -344,15 +368,21 @@ void applyMinMax(PGM* input) {
 PGM* applySobelFilter(PGM* input) {
   // Create and fill kernel
   Kernel* kernel = createKernel(3, 3);
-  Cell cells[9] = {
+  Cell kernel_edge[9] = {
+    -1,0,1,
+    -1,0,1,
+    -1,0,1
+  };
+  Cell kernel_sample[9] = {
     1,2,3,
     4,5,6,
     7,8,9
   };
-  memcpy(kernel->cells, cells, 9 * sizeof(Cell));
+  memcpy(kernel->cells, kernel_edge, 9 * sizeof(Cell));
 
   PGM* output = applyKernel(input, kernel);
-  applyMinMax(output);
+  applyThresholdNormalization(output);
+  freeProcessedPixels(output);
   freeKernel(kernel);
 
   return output;

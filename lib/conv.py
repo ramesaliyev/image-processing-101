@@ -5,7 +5,6 @@ def convolve2d(image, kernel):
     im_height = len(image)
     kr_size = len(kernel)
     kr_padding = kr_size - 1
-    kr_offset = kr_padding / 2
     out_width = im_width - kr_padding
     out_height = im_height - kr_padding
     output = array2d(out_width, out_height)

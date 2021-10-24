@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 /**
  * README
@@ -43,12 +44,14 @@
  */
 typedef struct PGM PGM;
 typedef struct Kernel Kernel;
-typedef int Pixel;
+typedef uint8_t Pixel;
+typedef int ProcessedPixel;
 typedef int Cell;
 
 struct PGM {
   char* type;
   Pixel* pixels;
+  ProcessedPixel* processedPixels;
   int maxValue;
   int width;
   int height;
@@ -149,6 +152,10 @@ PGM* createPGM(char* type, int maxValue, int width, int height) {
   return pgm;
 }
 
+void allocateProcessedPixels(PGM* pgm) {
+  pgm->processedPixels = (ProcessedPixel*) calloc(pgm->width * pgm->height, sizeof(ProcessedPixel));
+}
+
 PGM* readPGM(char* filepath) {
   FILE* file = openFile(filepath, "rb");
   
@@ -245,6 +252,7 @@ void writePGM(PGM* pgm, char* filepath) {
 void freePGM(PGM* pgm) {
   free(pgm->type);
   free(pgm->pixels);
+  free(pgm->processedPixels);
   free(pgm);
 }
 
@@ -286,26 +294,48 @@ PGM* applyKernel(PGM* input, Kernel* kernel) {
   int out_height = in_height - ker_margin;
 
   PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
-  
-  int r, c, x, y; // multi-dimensional indexes.
+  allocateProcessedPixels(output);
 
+  int r, c, x, y; // multi-dimensional indexes.
   for (r = 0; r < out_height; r++) {
     for (c = 0; c < out_width; c++) {
+      int i_out = (r * out_width) + c;
+
       for (y = 0; y < ker_size; y++) {
         for (x = 0; x < ker_size; x++) {
-          int i_out = (r * out_width) + c;
           int i_ker = (y * ker_size) + x;
           int i_in = ((r + y) * in_width) + c + x;
 
-          printf("%d %d %d\n", i_out, i_in, i_ker);
-
-          output->pixels[i_out] += input->pixels[i_in] * kernel->cells[i_ker];
+          output->processedPixels[i_out] += input->pixels[i_in] * kernel->cells[i_ker];
         }
       }
     }  
   }
  
   return output;
+}
+
+void applyMinMax(PGM* input) {
+  int pixelCount = input->width * input->height;
+  float min = input->processedPixels[0];
+  float max = input->processedPixels[0];
+  float val;
+
+  int i;
+  for (i = 1; i < pixelCount; i++) {
+    val = input->processedPixels[i];
+    if (val > max) max = val;
+    if (val < min) min = val;
+  }
+
+  float range = max - min;
+  float maxColor = MAX_COLOR;
+
+  int j;
+  for (j = 0; j < pixelCount; j++) {
+    val = (float) input->processedPixels[j];
+    input->pixels[j] = (int) round((val - min) / range * maxColor);
+  }
 }
 
 /**
@@ -321,13 +351,8 @@ PGM* applySobelFilter(PGM* input) {
   };
   memcpy(kernel->cells, cells, 9 * sizeof(Cell));
 
-  printf("\n%d %d %d\n%d %d %d\n%d %d %d\n\n",
-    kernel->cells[0], kernel->cells[1], kernel->cells[2],
-    kernel->cells[3], kernel->cells[4], kernel->cells[5],
-    kernel->cells[6], kernel->cells[7], kernel->cells[8] 
-  );
-
   PGM* output = applyKernel(input, kernel);
+  applyMinMax(output);
   freeKernel(kernel);
 
   return output;

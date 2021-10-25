@@ -1,7 +1,7 @@
 import math
 from .utils import array2d
 
-def filter_edges(image, kernel_x, kernel_y):
+def filter_edges(image, kernel_x, kernel_y, findDirections=False):
     im_width = len(image[0])
     im_height = len(image)
     kr_size = len(kernel_x)
@@ -21,24 +21,12 @@ def filter_edges(image, kernel_x, kernel_y):
                     
             output[r][c] = math.sqrt(output_x**2 + output_y**2)
     
+    if findDirections:
+        return (1, output)
+    
     return output
 
-def prewitt(image):
-    prewitt_kernel_x = [
-        [-1, 0, 1],
-        [-1, 0, 1],
-        [-1, 0, 1]
-    ]
-
-    prewitt_kernel_y = [
-        [-1, -1, -1],
-        [0, 0, 0],
-        [1, 1, 1]
-    ]
-    
-    return filter_edges(image, prewitt_kernel_x, prewitt_kernel_y)
-
-def sobel(image):
+def sobel(image, findDirections=False):
     sobel_kernel_x = [
         [-1, 0, 1],
         [-2, 0, 2],
@@ -51,4 +39,19 @@ def sobel(image):
         [1, 2, 1]
     ]
     
-    return filter_edges(image, sobel_kernel_x, sobel_kernel_y)
+    return filter_edges(image, sobel_kernel_x, sobel_kernel_y, findDirections)
+
+def prewitt(image, findDirections=False):
+    prewitt_kernel_x = [
+        [-1, 0, 1],
+        [-1, 0, 1],
+        [-1, 0, 1]
+    ]
+
+    prewitt_kernel_y = [
+        [-1, -1, -1],
+        [0, 0, 0],
+        [1, 1, 1]
+    ]
+    
+    return filter_edges(image, prewitt_kernel_x, prewitt_kernel_y, findDirections)

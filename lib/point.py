@@ -54,17 +54,3 @@ def contrast_stretch_percentage(pixels, intensity_histogram, cutoff_percent=0.05
     
     for i, r in enumerate(pixels):
         pixels[i] = round((r - r_min) * (i_max - i_min) / (r_max - r_min) + i_min)
-        
-def apply_truncate(pixels, left=0, right=255):
-    for i, r in enumerate(pixels):   
-        if r < left:
-            pixels[i] = left
-        elif r > right:
-            pixels[i] = right
-            
-def apply_minmax(pixels, i_min=0, i_max=255):
-    r_min = min(pixels)
-    r_max = max(pixels)
-    
-    for i, r in enumerate(pixels):   
-        pixels[i] = round((r - r_min) / (r_max - r_min) * (i_max - i_min) + i_min)

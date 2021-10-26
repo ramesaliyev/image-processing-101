@@ -36,7 +36,7 @@ def apply_median_filter(image, kernel_size):
     for r in range(out_height):
         for c in range(out_width):
             kernel = image[r:r+kernel_size, c:c+kernel_size]
-            kernel = np.sort(kernel.ravel()) # flatten and sort
+            kernel = np.sort(kernel.flatten())
             output[r][c] = kernel[median]
     
     return output

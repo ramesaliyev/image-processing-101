@@ -1,5 +1,7 @@
-def array2d(col, row, val=0):
-    return [[val for x in range(col)] for y in range(row)]
+import numpy as np
 
-def flatten2d(arr):
-    return [item for sublist in arr for item in sublist]
+def flatten(ndarray):
+    return np.array(ndarray).flatten().tolist()
+
+def array2d(x, y, val=0):
+    return np.full((y, x), val).tolist()

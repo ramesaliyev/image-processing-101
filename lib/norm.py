@@ -6,7 +6,7 @@ I_MAX = 255
 def apply_nd(fn, ndarr, *args):
     ndarr = np.array(ndarr)
     arr = fn(ndarr.flatten(), *args)
-    return np.array(arr).reshape(ndarr.shape).tolist()
+    return np.array(arr).reshape(ndarr.shape).astype(int).tolist()
 
 def apply_minmax(arr, i_min=I_MIN, i_max=I_MAX):
     r_min = min(arr)
@@ -18,7 +18,7 @@ def apply_minmax(arr, i_min=I_MIN, i_max=I_MAX):
         return np.zeros(len(arr)).tolist()
     
     for i, r in enumerate(arr):   
-        arr[i] = round((r - r_min) / r_range * i_range + i_min)
+        arr[i] = int(round((r - r_min) / r_range * i_range + i_min))
         
     return arr
     

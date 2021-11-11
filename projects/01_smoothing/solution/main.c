@@ -105,6 +105,10 @@ char* scanLine() {
   return input;
 }
 
+int comparator(const void *p, const void *q) { 
+  return (*(int*)p - *(int*)q);
+}
+
 /**
  * (3) PGM related functions. 
  */
@@ -354,33 +358,25 @@ int averageFilterKernel(Neighbors* neighbors) {
   float sum = 0;
   int i;
 
-  // find average
+  // sum neighbors
   for (i = 0; i < count; i++) {
     sum += neighbors->cells[i];
   }
 
+  // find average
   int average = (int) round(sum / count);
   return average;
 }
 
 int medianFilterKernel(Neighbors* neighbors) {
-  float count = neighbors->distance * neighbors->distance;
+  int count = neighbors->distance * neighbors->distance;
   int* cells = neighbors->cells;
 
-  // sort cells (with insertion sort)
-  int i, j, val;
-  for (i = 1; i < count; i++) {
-    val = cells[i];
-    j = i - 1;
-    while (j >= 0 && cells[j] > val) {
-      cells[j + 1] = cells[j];
-      j--;
-    }
-    cells[j + 1] = val;
-  }
+  // sort cells (with built-in qsort)
+  qsort((void*)cells, count, sizeof(cells[0]), comparator); 
 
   // find median
-  int median = cells[(int) round(count / 2.0)];
+  int median = cells[count / 2];
   return median;
 }
 
@@ -402,14 +398,14 @@ int printHelpMsg() {
 }
 
 int main(int argc, char **argv) {
+  char* cmd = argv[1];
+  char* input = argv[2];
+  char* output = argc == 4 ? argv[3] : DEFUALT_OUTPUT_NAME;
+  
   // Handle arguments and help command
   if (argc <= 1) {
     return printHelpMsg();
   }
-
-  char* cmd = argv[1];
-  char* input = argv[2];
-  char* output = argv[3];
 
   if (streq(cmd, "help")) {
     return printHelpMsg(); 
@@ -419,22 +415,13 @@ int main(int argc, char **argv) {
     return printIncorrectArgsMsg();
   }
 
-  if (argc == 3) {
-    output = DEFUALT_OUTPUT_NAME;
-  }
-
   // Handle filter commands.
-  char* name;
   Kernel kernel;
-  int kernelSize;
+  int kernelSize = 3; 
 
   if (streq(cmd, "average")) {
-    name = "Average";
-    kernelSize = 3;
     kernel = averageFilterKernel;
   } else if (streq(cmd, "median")) {
-    name = "Median";
-    kernelSize = 3;
     kernel = medianFilterKernel;
   } else {
     return printIncorrectArgsMsg();
@@ -459,6 +446,6 @@ int main(int argc, char **argv) {
 
   freePGM(pgm_input);
 
-  printf("-> %s filter successfully applied to %s and result saved to %s\n", name, input, output);
+  printf("-> %s filter successfully applied to %s and result saved to %s\n", cmd, input, output);
   return 0;
 }

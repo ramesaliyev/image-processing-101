@@ -280,6 +280,37 @@ void freeNeighbors(Neighbors* neighbors) {
 /**
  * (5) Image-Processing Operations
  */
+PGM* applyMirrorPadding(PGM* input, int size) {
+  int in_width = input->width;
+  int in_height = input->height;
+  int out_width = in_width + (size * 2);
+  int out_height = in_height + (size * 2);
+
+  PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
+  if (output == NULL) return NULL;
+
+  Pixel* in_pixels = input->pixels;
+  Pixel* out_pixels = output->pixels;
+
+  int r;
+  for (r = 0; r < out_height; r++) {
+    int ri_out = (r * out_width);
+    int ri_in = 0;
+
+    if (r >= size && r < out_height - size) {
+      ri_in = ((r - size) * in_width);
+    } else if (r >= out_height - size) {
+      ri_in = ((in_height - 1) * in_width);
+    }
+ 
+    memset(out_pixels + ri_out, in_pixels[ri_in], size);
+    memcpy(out_pixels + ri_out + size, (in_pixels + ri_in), in_width);
+    memset(out_pixels + ri_out + out_width - size, in_pixels[ri_in + in_width - 1], size);
+  }
+
+  return output;
+}
+
 PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
   int in_width = input->width;
   int in_height = input->height;
@@ -409,18 +440,25 @@ int main(int argc, char **argv) {
     return printIncorrectArgsMsg();
   }
 
-  // Apply kernel to the PGM.
+  // Read PGM.
   PGM* pgm_input = readPGM(input);
   if (pgm_input == NULL) return 0;
 
+  // Apply kernel of choice.
   PGM* pgm_output = applyKernel(pgm_input, kernelSize, kernel);
   if (pgm_output != NULL) {
-    writePGM(pgm_output, output);
+    // Apply mirro padding.
+    PGM* pgm_padded = applyMirrorPadding(pgm_output, kernelSize / 2);
+    if (pgm_padded != NULL) {
+      writePGM(pgm_padded, output);
+      freePGM(pgm_padded);
+    }
+
     freePGM(pgm_output);
   };
 
   freePGM(pgm_input);
-  
+
   printf("-> %s filter successfully applied to %s and result saved to %s\n", name, input, output);
   return 0;
 }

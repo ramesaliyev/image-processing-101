@@ -136,18 +136,7 @@ void skipCommentsAndWhitespace(FILE* file) {
 PGM* createPGM(char* type, int maxValue, int width, int height) {
   PGM* pgm = (PGM*) malloc(sizeof(PGM));
 
-  if (pgm == NULL) {
-    printf("Error: Could not allocate memory for PGM.");
-    return NULL;
-  }
-
   pgm->pixels = (Pixel*) calloc(width * height, sizeof(Pixel));
-
-  if (pgm->pixels == NULL) {
-    printf("Error: Could not allocate memory for PGM pixels.");
-    return NULL;
-  }
-
   pgm->type = copystr(type);
   pgm->maxValue = MAX_COLOR; //maxValue;
   pgm->width = width;
@@ -184,20 +173,12 @@ PGM* readPGM(char* filepath) {
   fgetc(file); // Skip last whitespace before pixels.
 
   PGM* pgm = createPGM(pgmType, maxValue, width, height);
-
-  if (pgm == NULL) {
-    printf("Error: Cannot read PGM due to memory allocation issues.\n");
-    return NULL;
-  }
-
   int pixelCount = pgm->width * pgm->height;
 
   // Read pixel values into pgm.
-  if (!strcmp(pgmType, P5)) {
-    // Read P5
+  if (!strcmp(pgmType, P5)) { // Read P5
     fread(pgm->pixels, sizeof(Pixel), pixelCount, file);
-  } else {
-    // Read P2
+  } else { // Read P2
     int i, color;
     for (i = 0; i < pixelCount; i++) {
       skipWhitespace(file);
@@ -230,11 +211,9 @@ void writePGMWithType(PGM* pgm, char* filepath, char* type) {
   int pixelCount = pgm->width * pgm->height;
 
   // Write pixels.
-  if (!strcmp(type, P5)) {
-    // Write P5
+  if (!strcmp(type, P5)) { // Write P5
     fwrite(pgm->pixels, sizeof(Pixel), pixelCount, file);
-  } else {
-    // Write P2
+  } else { // Write P2
     int i;
     for (i = 0; i < pixelCount; i++) {
       fprintf(file, "%d%c", pgm->pixels[i], ((i+1) % pgm->width) ? ' ' : '\n');
@@ -259,20 +238,8 @@ void freePGM(PGM* pgm) {
  */
 Neighbors* createNeighbors(int distance) {
   Neighbors* neighbors = (Neighbors*) malloc(sizeof(Neighbors));
-
-  if (neighbors == NULL) {
-    printf("Error: Could not allocate memory for Neighbors.");
-    return NULL;
-  }
-
   neighbors->distance = distance;
   neighbors->cells = (int*) calloc(distance * distance, sizeof(int));
-
-  if (neighbors->cells == NULL) {
-    printf("Error: Could not allocate memory for Neighbors cells.");
-    return NULL;
-  }
-
   return neighbors;
 }
 
@@ -291,8 +258,6 @@ PGM* applyMirrorPadding(PGM* input, int size) {
   int out_height = in_height + (size * 2);
 
   PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
-  if (output == NULL) return NULL;
-
   Pixel* in_pixels = input->pixels;
   Pixel* out_pixels = output->pixels;
 
@@ -323,10 +288,7 @@ PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
   int out_height = in_height - ker_margin;
 
   PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
-  if (output == NULL) return NULL;
-
   Neighbors* neighbors = createNeighbors(ker_size);
-  if (neighbors == NULL) return NULL;
 
   int r, c, x, y; // multi-dimensional indexes.
   // process inner rows and columns with margin
@@ -433,17 +395,13 @@ int main(int argc, char **argv) {
 
   // Apply kernel of choice.
   PGM* pgm_output = applyKernel(pgm_input, kernelSize, kernel);
-  if (pgm_output != NULL) {
-    // Apply mirro padding.
-    PGM* pgm_padded = applyMirrorPadding(pgm_output, kernelSize / 2);
-    if (pgm_padded != NULL) {
-      writePGM(pgm_padded, output);
-      freePGM(pgm_padded);
-    }
+  // Apply mirro padding.
+  PGM* pgm_padded = applyMirrorPadding(pgm_output, kernelSize / 2);
+  // Write result.
+  writePGM(pgm_padded, output);
 
-    freePGM(pgm_output);
-  };
-
+  freePGM(pgm_padded);
+  freePGM(pgm_output);
   freePGM(pgm_input);
 
   printf("-> %s filter successfully applied to %s and result saved to %s\n", cmd, input, output);

@@ -26,9 +26,7 @@
  * (6) Main
  */
 
-/**
- * (0) Program configuration definitions.
- */
+/** (0) Program configuration definitions. */
 #define LINESIZE 256
 #define NLCHR '\n'
 #define NLSTR "\n"
@@ -38,9 +36,7 @@
 #define COMMENT_IDENTIFIER '#'
 #define DEFUALT_OUTPUT_NAME "output.pgm"
 
-/**
- * (1) Type definitions and data structures.
- */
+/** (1) Type definitions and data structures. */
 typedef struct PGM PGM;
 typedef uint8_t Pixel;
 typedef struct Neighbors Neighbors;
@@ -59,9 +55,7 @@ struct Neighbors {
   int distance;
 };
 
-/**
- * (2) Common generic utilities.
- */
+/** (2) Common generic utilities. */
 bool streq(char* a, char* b) {
   return strcmp(a, b) == 0;
 }
@@ -109,9 +103,7 @@ int comparator(const void *p, const void *q) {
   return (*(int*)p - *(int*)q);
 }
 
-/**
- * (3) PGM related functions. 
- */
+/** (3) PGM related functions. */
 int skipWhitespace(FILE* file) {
   int chr;
   while ((chr = fgetc(file)) != EOF && isspace(chr));
@@ -198,17 +190,10 @@ PGM* readPGM(char* filepath) {
 
 void writePGMWithType(PGM* pgm, char* filepath, char* type) {
   FILE* file = openFile(filepath, "wb");
-  
-  // Write header
-  fprintf(file, 
-    "%s\n%d %d\n%d\n",
-    type,
-    pgm->width,
-    pgm->height,
-    pgm->maxValue
-  );
-  
   int pixelCount = pgm->width * pgm->height;
+
+  // Write header
+  fprintf(file, "%s\n%d %d\n%d\n", type, pgm->width, pgm->height, pgm->maxValue);
 
   // Write pixels.
   if (!strcmp(type, P5)) { // Write P5
@@ -233,9 +218,7 @@ void freePGM(PGM* pgm) {
   free(pgm);
 }
 
-/**
- * (4) Neighbors Operations
- */
+/** (4) Neighbors Operations */
 Neighbors* createNeighbors(int distance) {
   Neighbors* neighbors = (Neighbors*) malloc(sizeof(Neighbors));
   neighbors->distance = distance;
@@ -248,9 +231,66 @@ void freeNeighbors(Neighbors* neighbors) {
   free(neighbors);
 }
 
-/**
- * (5) Image-Processing Operations
- */
+/** (5) Image-Processing Operations */
+PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
+  int in_width = input->width;
+  int in_height = input->height;
+  int ker_margin = ker_size - 1;
+  int out_width = in_width - ker_margin;
+  int out_height = in_height - ker_margin;
+
+  PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
+  Neighbors* neighbors = createNeighbors(ker_size);
+
+  int r, c, x, y; // multi-dimensional indexes.
+  // process inner rows and columns with margin
+  for (r = 0; r < out_height; r++) {
+    for (c = 0; c < out_width; c++) {
+      // fill neighbors flat matrix (target matrix of convolution)
+      for (y = 0; y < ker_size; y++) {
+        for (x = 0; x < ker_size; x++) {
+          int nbor_index = (y * ker_size) + x;
+          int in_index = ((r + y) * in_width) + c + x;
+
+          neighbors->cells[nbor_index] = (int) input->pixels[in_index];
+        }
+      }
+
+      // Pass neighbors flat matrix to kernel function to process, and set result.
+      int out_index = (r * out_width) + c;
+      output->pixels[out_index] = kernel(neighbors);
+    }  
+  }
+
+  freeNeighbors(neighbors);
+  return output;
+}
+
+int averageFilterKernel(Neighbors* neighbors) {
+  float count = neighbors->distance * neighbors->distance;
+  float sum = 0;
+  int i;
+
+  // sum neighbors
+  for (i = 0; i < count; i++) {
+    sum += neighbors->cells[i];
+  }
+
+  // find and return average
+  return (int) round(sum / count);
+}
+
+int medianFilterKernel(Neighbors* neighbors) {
+  int count = neighbors->distance * neighbors->distance;
+  int* cells = neighbors->cells;
+
+  // sort cells (with built-in qsort)
+  qsort((void*)cells, count, sizeof(cells[0]), comparator); 
+
+  // find and median
+  return cells[count / 2];
+}
+
 PGM* applyMirrorPadding(PGM* input, int size) {
   int in_width = input->width;
   int in_height = input->height;
@@ -280,71 +320,7 @@ PGM* applyMirrorPadding(PGM* input, int size) {
   return output;
 }
 
-PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
-  int in_width = input->width;
-  int in_height = input->height;
-  int ker_margin = ker_size - 1;
-  int out_width = in_width - ker_margin;
-  int out_height = in_height - ker_margin;
-
-  PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
-  Neighbors* neighbors = createNeighbors(ker_size);
-
-  int r, c, x, y; // multi-dimensional indexes.
-  // process inner rows and columns with margin
-  for (r = 0; r < out_height; r++) {
-    for (c = 0; c < out_width; c++) {
-      int out_index = (r * out_width) + c;
-
-      // fill neighbors flat matrix (target matrix of convolution)
-      for (y = 0; y < ker_size; y++) {
-        for (x = 0; x < ker_size; x++) {
-          int nbor_index = (y * ker_size) + x;
-          int in_index = ((r + y) * in_width) + c + x;
-
-          neighbors->cells[nbor_index] = (int) input->pixels[in_index];
-        }
-      }
-
-      // Pass neighbors flat matrix to kernel function to process, and set result.
-      output->pixels[out_index] = kernel(neighbors);
-    }  
-  }
-
-  freeNeighbors(neighbors);
-  return output;
-}
-
-int averageFilterKernel(Neighbors* neighbors) {
-  float count = neighbors->distance * neighbors->distance;
-  float sum = 0;
-  int i;
-
-  // sum neighbors
-  for (i = 0; i < count; i++) {
-    sum += neighbors->cells[i];
-  }
-
-  // find average
-  int average = (int) round(sum / count);
-  return average;
-}
-
-int medianFilterKernel(Neighbors* neighbors) {
-  int count = neighbors->distance * neighbors->distance;
-  int* cells = neighbors->cells;
-
-  // sort cells (with built-in qsort)
-  qsort((void*)cells, count, sizeof(cells[0]), comparator); 
-
-  // find median
-  int median = cells[count / 2];
-  return median;
-}
-
-/**
- * (6) Main
- */
+/** (6) Main */
 int printIncorrectArgsMsg() {
   printf("Error: Incorrect arguments, please check your arguments, type 'help' to see usages!\n");
   return 0;
@@ -364,18 +340,9 @@ int main(int argc, char **argv) {
   char* input = argv[2];
   char* output = argc == 4 ? argv[3] : DEFUALT_OUTPUT_NAME;
   
-  // Handle arguments and help command
-  if (argc <= 1) {
-    return printHelpMsg();
-  }
-
-  if (streq(cmd, "help")) {
-    return printHelpMsg(); 
-  }
-
-  if (argc == 2) {
-    return printIncorrectArgsMsg();
-  }
+  // Handle missing arguments and help command.
+  if (argc <= 1 || streq(cmd, "help")) return printHelpMsg();
+  if (argc == 2) return printIncorrectArgsMsg();
 
   // Handle filter commands.
   Kernel kernel;
@@ -393,9 +360,8 @@ int main(int argc, char **argv) {
   PGM* pgm_input = readPGM(input);
   if (pgm_input == NULL) return 0;
 
-  // Apply kernel of choice.
+  // Apply kernel of choice and padding.
   PGM* pgm_output = applyKernel(pgm_input, kernelSize, kernel);
-  // Apply mirro padding.
   PGM* pgm_padded = applyMirrorPadding(pgm_output, kernelSize / 2);
   // Write result.
   writePGM(pgm_padded, output);

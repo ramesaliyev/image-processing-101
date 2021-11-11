@@ -208,7 +208,6 @@ PGM* readPGM(char* filepath) {
   }
 
   fclose(file);
-
   return pgm;
 }
 
@@ -262,14 +261,13 @@ Neighbors* createNeighbors(int distance) {
     return NULL;
   }
 
+  neighbors->distance = distance;
   neighbors->cells = (int*) calloc(distance * distance, sizeof(int));
 
   if (neighbors->cells == NULL) {
     printf("Error: Could not allocate memory for Neighbors cells.");
     return NULL;
   }
-
-  neighbors->distance = distance;
 
   return neighbors;
 }
@@ -299,20 +297,20 @@ PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
   // process inner rows and columns with margin
   for (r = 0; r < out_height; r++) {
     for (c = 0; c < out_width; c++) {
-      int i_out = (r * out_width) + c;
+      int out_index = (r * out_width) + c;
 
       // fill neighbors flat matrix (target matrix of convolution)
       for (y = 0; y < ker_size; y++) {
         for (x = 0; x < ker_size; x++) {
-          int i_mat = (y * ker_size) + x;
-          int i_in = ((r + y) * in_width) + c + x;
+          int nbor_index = (y * ker_size) + x;
+          int in_index = ((r + y) * in_width) + c + x;
 
-          neighbors->cells[i_mat] = (int) input->pixels[i_in];
+          neighbors->cells[nbor_index] = (int) input->pixels[in_index];
         }
       }
 
       // Pass neighbors flat matrix to kernel function to process, and set result.
-      output->pixels[i_out] = kernel(neighbors);
+      output->pixels[out_index] = kernel(neighbors);
     }  
   }
 
@@ -325,6 +323,7 @@ int averageFilterKernel(Neighbors* neighbors) {
   float sum = 0;
   int i;
 
+  // find average
   for (i = 0; i < count; i++) {
     sum += neighbors->cells[i];
   }
@@ -337,18 +336,19 @@ int medianFilterKernel(Neighbors* neighbors) {
   float count = neighbors->distance * neighbors->distance;
   int* cells = neighbors->cells;
 
-  int i, key, j;
+  // sort cells (with insertion sort)
+  int i, j, val;
   for (i = 1; i < count; i++) {
-    key = cells[i];
+    val = cells[i];
     j = i - 1;
-
-    while (j >= 0 && cells[j] > key) {
+    while (j >= 0 && cells[j] > val) {
       cells[j + 1] = cells[j];
-      j = j - 1;
+      j--;
     }
-    cells[j + 1] = key;
+    cells[j + 1] = val;
   }
 
+  // find median
   int median = cells[(int) round(count / 2.0)];
   return median;
 }

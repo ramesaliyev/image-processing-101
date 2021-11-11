@@ -6,26 +6,6 @@
 #include <ctype.h>
 #include <math.h>
 
-/**
- * README
- * 
- * - Both P5 and P2 format supported as input.
- * - Output file will be in it's original format.
- *   For example if your original PGM was P2, output PGM will
- *   be in P2 format (and vice-versa). 
- * 
- * Code structure:
- * Search like "(x)" to jump directly to section.
- * 
- * (0) Program configuration definitions.
- * (1) Data types and structures.
- * (2) Common generic utilities.
- * (3) PGM related functions.
- * (4) Neighbors Operations
- * (5) Image-Processing operation.
- * (6) Main
- */
-
 /** (0) Program configuration definitions. */
 #define LINESIZE 256
 #define NLCHR '\n'
@@ -287,7 +267,7 @@ int medianFilterKernel(Neighbors* neighbors) {
   // sort cells (with built-in qsort)
   qsort((void*)cells, count, sizeof(cells[0]), comparator); 
 
-  // find and median
+  // find and return median.
   return cells[count / 2];
 }
 
@@ -328,8 +308,8 @@ int printIncorrectArgsMsg() {
 
 int printHelpMsg() {
   printf("---------------------------------------------------------------------------------------------------------------\n");
-  printf("$ %-45s %s\n", "average <input.pgm> [<output.cpgm>]", "- will apply average filter to image (default output = "DEFUALT_OUTPUT_NAME")");
-  printf("$ %-45s %s\n", "median <input.pgm> [<output.cpgm>]", "- will apply median filter to image  (default output = "DEFUALT_OUTPUT_NAME")");
+  printf("$ %-45s %s\n", "average <input.pgm> [<output.pgm>]", "- will apply average filter to image (default output = "DEFUALT_OUTPUT_NAME")");
+  printf("$ %-45s %s\n", "median <input.pgm> [<output.pgm>]", "- will apply median filter to image  (default output = "DEFUALT_OUTPUT_NAME")");
   printf("$ %-45s %s\n", "help", "- display this message");
   printf("---------------------------------------------------------------------------------------------------------------\n");
   return 0;

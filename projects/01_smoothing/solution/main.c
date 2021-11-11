@@ -43,14 +43,12 @@
  */
 typedef struct PGM PGM;
 typedef uint8_t Pixel;
-typedef int ProcessedPixel;
 typedef struct Neighbors Neighbors;
 typedef int (*Kernel)(Neighbors*);
 
 struct PGM {
   char* type;
   Pixel* pixels;
-  ProcessedPixel* processedPixels;
   int maxValue;
   int width;
   int height;
@@ -154,10 +152,6 @@ PGM* createPGM(char* type, int maxValue, int width, int height) {
   return pgm;
 }
 
-void allocateProcessedPixels(PGM* pgm) {
-  pgm->processedPixels = (ProcessedPixel*) calloc(pgm->width * pgm->height, sizeof(ProcessedPixel));
-}
-
 PGM* readPGM(char* filepath) {
   FILE* file = openFile(filepath, "rb");
   
@@ -251,17 +245,9 @@ void writePGM(PGM* pgm, char* filepath) {
   writePGMWithType(pgm, filepath, pgm->type);
 }
 
-void freeProcessedPixels(PGM* pgm) {
-  if (pgm->processedPixels != NULL) {
-    free(pgm->processedPixels);
-    pgm->processedPixels = NULL;
-  }
-}
-
 void freePGM(PGM* pgm) {
   free(pgm->type);
   free(pgm->pixels);
-  freeProcessedPixels(pgm);
   free(pgm);
 }
 
@@ -296,38 +282,6 @@ void freeNeighbors(Neighbors* neighbors) {
 /**
  * (5) Image-Processing Operations
  */
-// Will do min-max normalization if necessary.
-void applyNormalization(PGM* input) {
-  int pixelCount = input->width * input->height;
-  float min = input->processedPixels[0];
-  float max = input->processedPixels[0];
-  float val;
-
-  int i;
-  for (i = 1; i < pixelCount; i++) {
-    val = input->processedPixels[i];
-    input->pixels[i] = val;
-
-    if (val > max) max = val;
-    if (val < min) min = val;
-  }
-
-  // there is no need for min-max normalization.
-  if (min >= 0 && max <= MAX_COLOR) {
-    return;
-  }
-
-  // do min-max normalization
-  float range = max - min;
-  float maxColor = MAX_COLOR;
-
-  int j;
-  for (j = 0; j < pixelCount; j++) {
-    val = (float) input->processedPixels[j];
-    input->pixels[j] = (Pixel) round((val - min) / range * maxColor);
-  }
-}
-
 PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
   int in_width = input->width;
   int in_height = input->height;
@@ -336,9 +290,10 @@ PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
   int out_height = in_height - ker_margin;
 
   PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
-  allocateProcessedPixels(output);
+  if (output == NULL) return NULL;
 
   Neighbors* neighbors = createNeighbors(ker_size);
+  if (neighbors == NULL) return NULL;
 
   int r, c, x, y; // multi-dimensional indexes.
   // process inner rows and columns with margin
@@ -357,7 +312,7 @@ PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
       }
 
       // Pass neighbors flat matrix to kernel function to process, and set result.
-      output->processedPixels[i_out] = kernel(neighbors);
+      output->pixels[i_out] = kernel(neighbors);
     }  
   }
 
@@ -460,8 +415,6 @@ int main(int argc, char **argv) {
 
   PGM* pgm_output = applyKernel(pgm_input, kernelSize, kernel);
   if (pgm_output != NULL) {
-    applyNormalization(pgm_output);
-    freeProcessedPixels(pgm_output);
     writePGM(pgm_output, output);
     freePGM(pgm_output);
   };

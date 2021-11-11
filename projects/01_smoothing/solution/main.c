@@ -40,12 +40,8 @@ bool streq(char* a, char* b) {
   return strcmp(a, b) == 0;
 }
 
-char* mallocstr(int size) {
-  return (char*) malloc((size + 1) * sizeof(char));
-}
-
 char* copystr(char* str) {
-  char* copy = mallocstr(strlen(str));
+  char* copy = (char*) malloc((strlen(str) + 1) * sizeof(char));
   if (copy) strcpy(copy, str);
   return copy;
 }
@@ -57,26 +53,6 @@ FILE* openFile(char* filename, char* as) {
     return NULL;
   };
   return file;
-}
-
-char* scanLine() {
-  char* input = mallocstr(LINESIZE);
-  fgets(input, LINESIZE, stdin);
-
-  if (input[strlen(input)-1] != NLCHR) {
-    int ch;
-    while (((ch = getchar()) != NLCHR) && (ch != EOF));
-  }
-
-  if (strcmp(input, NLSTR) == 0) {
-    strcpy(input, "");
-  } else if (strcmp(input, " \n") == 0) {
-    strcpy(input, "");
-  } else {
-    input[strcspn(input, "\r\n")] = 0;
-  }
-
-  return input;
 }
 
 int comparator(const void *p, const void *q) { 
@@ -198,7 +174,7 @@ void freePGM(PGM* pgm) {
   free(pgm);
 }
 
-/** (4) Neighbors Operations */
+/** (4) Image-Processing Operations */
 Neighbors* createNeighbors(int distance) {
   Neighbors* neighbors = (Neighbors*) malloc(sizeof(Neighbors));
   neighbors->distance = distance;
@@ -211,7 +187,6 @@ void freeNeighbors(Neighbors* neighbors) {
   free(neighbors);
 }
 
-/** (5) Image-Processing Operations */
 PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
   int in_width = input->width;
   int in_height = input->height;
@@ -300,40 +275,34 @@ PGM* applyMirrorPadding(PGM* input, int size) {
   return output;
 }
 
-/** (6) Main */
-int printIncorrectArgsMsg() {
-  printf("Error: Incorrect arguments, please check your arguments, type 'help' to see usages!\n");
-  return 0;
-}
-
+/** (5) Main */
 int printHelpMsg() {
   printf("---------------------------------------------------------------------------------------------------------------\n");
-  printf("$ %-45s %s\n", "average <input.pgm> [<output.pgm>]", "- will apply average filter to image (default output = "DEFAULT_OUTPUT_NAME")");
-  printf("$ %-45s %s\n", "median <input.pgm> [<output.pgm>]", "- will apply median filter to image  (default output = "DEFAULT_OUTPUT_NAME")");
-  printf("$ %-45s %s\n", "help", "- display this message");
+  printf("$ %-50s %s\n", "average <kernel-size> <input.pgm> [<output.pgm>]", "- will apply AVERAGE filter to input.pgm and save result.");
+  printf("$ %-50s %s\n", "median <kernel-size> <input.pgm> [<output.pgm>]", "- will apply MEDIAN filter to input.pgm and save result.");
+  printf("$ %-50s %s\n", "", "  (default output filename is '"DEFAULT_OUTPUT_NAME"')");
   printf("---------------------------------------------------------------------------------------------------------------\n");
   return 0;
 }
 
 int main(int argc, char **argv) {
+  // Handle missing arguments.
+  if (argc <= 3) return printHelpMsg();
+
   char* cmd = argv[1];
-  char* input = argv[2];
-  char* output = argc == 4 ? argv[3] : DEFAULT_OUTPUT_NAME;
-  
-  // Handle missing arguments and help command.
-  if (argc <= 1 || streq(cmd, "help")) return printHelpMsg();
-  if (argc == 2) return printIncorrectArgsMsg();
+  int kernelSize = atoi(argv[2]); 
+  char* input = argv[3];
+  char* output = argc == 5 ? argv[4] : DEFAULT_OUTPUT_NAME;
 
   // Handle filter commands.
   Kernel kernel;
-  int kernelSize = 3; 
 
   if (streq(cmd, "average")) {
     kernel = averageFilterKernel;
   } else if (streq(cmd, "median")) {
     kernel = medianFilterKernel;
   } else {
-    return printIncorrectArgsMsg();
+    return printHelpMsg();
   }
 
   // Read PGM.

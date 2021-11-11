@@ -21,9 +21,10 @@
  * (1) Data types and structures.
  * (2) Common generic utilities.
  * (3) PGM related functions.
- * (4) Neighbors Operations
- * (5) Image-Processing operation.
- * (6) Main
+ * (4) Kernel-Image Operations
+ * (5) Filter Operations
+ * (6) Menu operations
+ * (7) Main
  */
 
 /**
@@ -39,13 +40,13 @@
 #define DEFUALT_OUTPUT_NAME "output.pgm"
 
 /**
- * (1) Type definitions and data structures.
+ * (1) Data types and structures.
  */
 typedef struct PGM PGM;
+typedef struct Kernel Kernel;
 typedef uint8_t Pixel;
 typedef int ProcessedPixel;
-typedef struct Neighbors Neighbors;
-typedef int (*Kernel)(Neighbors*);
+typedef int Cell;
 
 struct PGM {
   char* type;
@@ -56,18 +57,15 @@ struct PGM {
   int height;
 };
 
-struct Neighbors {
-  int* cells;
-  int distance;
+struct Kernel {
+  Cell* cells;
+  int width;
+  int height;
 };
 
 /**
  * (2) Common generic utilities.
  */
-bool streq(char* a, char* b) {
-  return strcmp(a, b) == 0;
-}
-
 char* mallocstr(int size) {
   return (char*) malloc((size + 1) * sizeof(char));
 }
@@ -266,38 +264,65 @@ void freePGM(PGM* pgm) {
 }
 
 /**
- * (4) Neighbors Operations
+ * (4) Kernel Operations
  */
-Neighbors* createNeighbors(int distance) {
-  Neighbors* neighbors = (Neighbors*) malloc(sizeof(Neighbors));
+Kernel* createKernel(int width, int height) {
+  Kernel* kernel = (Kernel*) malloc(sizeof(Kernel));
 
-  if (neighbors == NULL) {
-    printf("Error: Could not allocate memory for Neighbors.");
+  if (kernel == NULL) {
+    printf("Error: Could not allocate memory for Kernel.");
     return NULL;
   }
 
-  neighbors->cells = (int*) calloc(distance * distance, sizeof(int));
+  kernel->cells = (Cell*) calloc(width * height, sizeof(Cell));
 
-  if (neighbors->cells == NULL) {
-    printf("Error: Could not allocate memory for Neighbors cells.");
+  if (kernel->cells == NULL) {
+    printf("Error: Could not allocate memory for Kernel cells.");
     return NULL;
   }
 
-  neighbors->distance = distance;
+  kernel->width = width;
+  kernel->height = height;
 
-  return neighbors;
+  return kernel;
 }
 
-void freeNeighbors(Neighbors* neighbors) {
-  free(neighbors->cells);
-  free(neighbors);
+void freeKernel(Kernel* kernel) {
+  free(kernel->cells);
+  free(kernel);
 }
 
-/**
- * (5) Image-Processing Operations
- */
-// Will do min-max normalization if necessary.
-void applyNormalization(PGM* input) {
+PGM* applyKernel(PGM* input, Kernel* kernel) {
+  int in_width = input->width;
+  int in_height = input->height;
+  int ker_size = kernel->width;
+  int ker_margin = ker_size - 1;
+  int out_width = in_width - ker_margin;
+  int out_height = in_height - ker_margin;
+
+  PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
+  allocateProcessedPixels(output);
+
+  int r, c, x, y; // multi-dimensional indexes.
+  for (r = 0; r < out_height; r++) {
+    for (c = 0; c < out_width; c++) {
+      int i_out = (r * out_width) + c;
+
+      for (y = 0; y < ker_size; y++) {
+        for (x = 0; x < ker_size; x++) {
+          int i_ker = (y * ker_size) + x;
+          int i_in = ((r + y) * in_width) + c + x;
+
+          output->processedPixels[i_out] += input->pixels[i_in] * kernel->cells[i_ker];
+        }
+      }
+    }  
+  }
+ 
+  return output;
+}
+
+void applyMinMaxNormalization(PGM* input) {
   int pixelCount = input->width * input->height;
   float min = input->processedPixels[0];
   float max = input->processedPixels[0];
@@ -306,18 +331,10 @@ void applyNormalization(PGM* input) {
   int i;
   for (i = 1; i < pixelCount; i++) {
     val = input->processedPixels[i];
-    input->pixels[i] = val;
-
     if (val > max) max = val;
     if (val < min) min = val;
   }
 
-  // there is no need for min-max normalization.
-  if (min >= 0 && max <= MAX_COLOR) {
-    return;
-  }
-
-  // do min-max normalization
   float range = max - min;
   float maxColor = MAX_COLOR;
 
@@ -328,146 +345,120 @@ void applyNormalization(PGM* input) {
   }
 }
 
-PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
-  int in_width = input->width;
-  int in_height = input->height;
-  int ker_margin = ker_size - 1;
-  int out_width = in_width - ker_margin;
-  int out_height = in_height - ker_margin;
+void applyThresholdNormalization(PGM* input) {
+  int pixelCount = input->width * input->height;
 
-  PGM* output = createPGM(input->type, input->maxValue, out_width, out_height);
-  allocateProcessedPixels(output);
+  int j, val;
+  for (j = 0; j < pixelCount; j++) {
+    val = input->processedPixels[j];
 
-  Neighbors* neighbors = createNeighbors(ker_size);
-
-  int r, c, x, y; // multi-dimensional indexes.
-  // process inner rows and columns with margin
-  for (r = 0; r < out_height; r++) {
-    for (c = 0; c < out_width; c++) {
-      int i_out = (r * out_width) + c;
-
-      // fill neighbors flat matrix (target matrix of convolution)
-      for (y = 0; y < ker_size; y++) {
-        for (x = 0; x < ker_size; x++) {
-          int i_mat = (y * ker_size) + x;
-          int i_in = ((r + y) * in_width) + c + x;
-
-          neighbors->cells[i_mat] = (int) input->pixels[i_in];
-        }
-      }
-
-      // Pass neighbors flat matrix to kernel function to process, and set result.
-      output->processedPixels[i_out] = kernel(neighbors);
-    }  
-  }
-
-  freeNeighbors(neighbors);
-  return output;
-}
-
-int averageFilterKernel(Neighbors* neighbors) {
-  float count = neighbors->distance * neighbors->distance;
-  float sum = 0;
-  int i;
-
-  for (i = 0; i < count; i++) {
-    sum += neighbors->cells[i];
-  }
-
-  int average = (int) round(sum / count);
-  return average;
-}
-
-int medianFilterKernel(Neighbors* neighbors) {
-  float count = neighbors->distance * neighbors->distance;
-  int* cells = neighbors->cells;
-
-  int i, key, j;
-  for (i = 1; i < count; i++) {
-    key = cells[i];
-    j = i - 1;
-
-    while (j >= 0 && cells[j] > key) {
-      cells[j + 1] = cells[j];
-      j = j - 1;
+    if (val > MAX_COLOR) {
+      input->pixels[j] = MAX_COLOR;
+    } else if (val < 0) {
+      input->pixels[j] = 0;
+    } else {
+      input->pixels[j] = (Pixel) val;
     }
-    cells[j + 1] = key;
   }
-
-  int median = cells[(int) round(count / 2.0)];
-  return median;
 }
 
 /**
- * (6) Main
+ * (5) Filter Operations
  */
-int printIncorrectArgsMsg() {
+PGM* applySobelFilter(PGM* input) {
+  // Create and fill kernel
+  Kernel* kernel = createKernel(3, 3);
+  Cell kernel_edge[9] = {
+    -1,0,1,
+    -1,0,1,
+    -1,0,1
+  };
+  Cell kernel_sample[9] = {
+    1,2,3,
+    4,5,6,
+    7,8,9
+  };
+  memcpy(kernel->cells, kernel_edge, 9 * sizeof(Cell));
+
+  PGM* output = applyKernel(input, kernel);
+  applyThresholdNormalization(output);
+  freeProcessedPixels(output);
+  freeKernel(kernel);
+
+  return output;
+}
+
+/**
+ * (6) Menu operations
+ */
+void print_incorrect_args() {
   printf("Error: Incorrect arguments, please check your arguments, type 'help' to see usages!\n");
-  return 0;
 }
 
-int printHelpMsg() {
-  printf("---------------------------------------------------------------------------------------------------------------\n");
-  printf("$ %-45s %s\n", "average <input.pgm> [<output.cpgm>]", "- will apply average filter to image (default output = "DEFUALT_OUTPUT_NAME")");
-  printf("$ %-45s %s\n", "median <input.pgm> [<output.cpgm>]", "- will apply median filter to image  (default output = "DEFUALT_OUTPUT_NAME")");
-  printf("$ %-45s %s\n", "help", "- display this message");
-  printf("---------------------------------------------------------------------------------------------------------------\n");
-  return 0;
-}
+void menu_sobel() {
+  char* input = strtok(NULL, " ");
+  char* output = strtok(NULL, " ");
 
-int main(int argc, char **argv) {
-  // Handle arguments and help command
-  if (argc <= 1) {
-    return printHelpMsg();
+  if (input == NULL) {
+    print_incorrect_args();
+    return;
   }
 
-  char* cmd = argv[1];
-  char* input = argv[2];
-  char* output = argv[3];
-
-  if (streq(cmd, "help")) {
-    return printHelpMsg(); 
-  }
-
-  if (argc == 2) {
-    return printIncorrectArgsMsg();
-  }
-
-  if (argc == 3) {
+  if (output == NULL) {
     output = DEFUALT_OUTPUT_NAME;
   }
 
-  // Handle filter commands.
-  char* name;
-  Kernel kernel;
-  int kernelSize;
-
-  if (streq(cmd, "average")) {
-    name = "Average";
-    kernelSize = 3;
-    kernel = averageFilterKernel;
-  } else if (streq(cmd, "median")) {
-    name = "Median";
-    kernelSize = 3;
-    kernel = medianFilterKernel;
-  } else {
-    return printIncorrectArgsMsg();
-  }
-
-  // Apply kernel to the PGM.
   PGM* pgm_input = readPGM(input);
-  if (pgm_input == NULL) return 0;
+  if (pgm_input == NULL) return;
 
-  PGM* pgm_output = applyKernel(pgm_input, kernelSize, kernel);
+  PGM* pgm_output = applySobelFilter(pgm_input);
   if (pgm_output != NULL) {
-    applyNormalization(pgm_output);
-    freeProcessedPixels(pgm_output);
     writePGM(pgm_output, output);
     freePGM(pgm_output);
   };
 
   freePGM(pgm_input);
+
+  printf("-> Sobel filter successfully applied to %s and result saved to %s\n", input, output);
+}
+
+void help() {
+  printf("---------------------------------------------------------------------------------------------------------------\n");
+  printf("$ %-45s %s\n", "sobel <input.pgm> [<output.cpgm>]", "- will use sobel filter to detect edges in input pgm (default output = "DEFUALT_OUTPUT_NAME")");
+  printf("$ %-45s %s\n", "help", "- display this message");
+  printf("$ %-45s %s\n", "exit", "- exit from program");
+  printf("---------------------------------------------------------------------------------------------------------------\n");
+}
+
+/**
+ * (7) Main
+ */
+int main() {
+  printf("-------------------------------------\n");
+  printf("Welcome to YTU Improc 2021\n");
+  printf("Available commands are listed bellow:\n");
+  help();
   
-  printf("-> %s filter successfully applied to %s and result saved to %s\n", name, input, output);
+  while(true) {
+    printf("$ ");
+    char* line = scanLine();
+    
+    if (strcmp(line, "") != 0) {
+      char* cmd = strtok(line, " ");
+
+      if (strcmp(cmd, "sobel") == 0) {
+        menu_sobel();
+      } else if (strcmp(cmd, "help") == 0) {
+        help();
+      } else if (strcmp(cmd, "exit") == 0) {
+        break;
+      } else {
+        printf("Error: Unknown command '%s'\n", cmd);
+      }
+    }
+
+    free(line);
+  }
+  
   return 0;
 }

@@ -10,11 +10,11 @@
 #define LINESIZE 256
 #define NLCHR '\n'
 #define NLSTR "\n"
-#define MAX_COLOR 255
+#define MAX_VALUE 255
 #define P5 "P5"
 #define P2 "P2"
 #define COMMENT_IDENTIFIER '#'
-#define DEFUALT_OUTPUT_NAME "output.pgm"
+#define DEFAULT_OUTPUT_NAME "output.pgm"
 
 /** (1) Type definitions and data structures. */
 typedef struct PGM PGM;
@@ -110,7 +110,7 @@ PGM* createPGM(char* type, int maxValue, int width, int height) {
 
   pgm->pixels = (Pixel*) calloc(width * height, sizeof(Pixel));
   pgm->type = copystr(type);
-  pgm->maxValue = MAX_COLOR; //maxValue;
+  pgm->maxValue = MAX_VALUE; //maxValue;
   pgm->width = width;
   pgm->height = height;
 
@@ -223,7 +223,7 @@ PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
   Neighbors* neighbors = createNeighbors(ker_size);
 
   int r, c, x, y; // multi-dimensional indexes.
-  // process inner rows and columns with margin
+  // process inner rows and columns of margin
   for (r = 0; r < out_height; r++) {
     for (c = 0; c < out_width; c++) {
       // fill neighbors flat matrix (target matrix of convolution)
@@ -236,7 +236,7 @@ PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
         }
       }
 
-      // Pass neighbors flat matrix to kernel function to process, and set result.
+      // Pass neighbors flat matrix to kernel function to process, and set returned result.
       int out_index = (r * out_width) + c;
       output->pixels[out_index] = kernel(neighbors);
     }  
@@ -249,9 +249,9 @@ PGM* applyKernel(PGM* input, int ker_size, Kernel kernel) {
 int averageFilterKernel(Neighbors* neighbors) {
   float count = neighbors->distance * neighbors->distance;
   float sum = 0;
-  int i;
 
   // sum neighbors
+  int i;
   for (i = 0; i < count; i++) {
     sum += neighbors->cells[i];
   }
@@ -308,8 +308,8 @@ int printIncorrectArgsMsg() {
 
 int printHelpMsg() {
   printf("---------------------------------------------------------------------------------------------------------------\n");
-  printf("$ %-45s %s\n", "average <input.pgm> [<output.pgm>]", "- will apply average filter to image (default output = "DEFUALT_OUTPUT_NAME")");
-  printf("$ %-45s %s\n", "median <input.pgm> [<output.pgm>]", "- will apply median filter to image  (default output = "DEFUALT_OUTPUT_NAME")");
+  printf("$ %-45s %s\n", "average <input.pgm> [<output.pgm>]", "- will apply average filter to image (default output = "DEFAULT_OUTPUT_NAME")");
+  printf("$ %-45s %s\n", "median <input.pgm> [<output.pgm>]", "- will apply median filter to image  (default output = "DEFAULT_OUTPUT_NAME")");
   printf("$ %-45s %s\n", "help", "- display this message");
   printf("---------------------------------------------------------------------------------------------------------------\n");
   return 0;
@@ -318,7 +318,7 @@ int printHelpMsg() {
 int main(int argc, char **argv) {
   char* cmd = argv[1];
   char* input = argv[2];
-  char* output = argc == 4 ? argv[3] : DEFUALT_OUTPUT_NAME;
+  char* output = argc == 4 ? argv[3] : DEFAULT_OUTPUT_NAME;
   
   // Handle missing arguments and help command.
   if (argc <= 1 || streq(cmd, "help")) return printHelpMsg();

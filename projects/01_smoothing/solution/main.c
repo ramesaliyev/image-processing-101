@@ -309,10 +309,9 @@ int main(int argc, char **argv) {
   PGM* pgm_input = readPGM(input);
   if (pgm_input == NULL) return 0;
 
-  // Apply kernel of choice and padding.
+  // Apply kernel of choice, fix size by padding and save result.
   PGM* pgm_output = applyKernel(pgm_input, kernelSize, kernel);
   PGM* pgm_padded = applyMirrorPadding(pgm_output, kernelSize / 2);
-  // Write result.
   writePGM(pgm_padded, output);
 
   freePGM(pgm_padded);

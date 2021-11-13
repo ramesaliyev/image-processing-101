@@ -8,8 +8,6 @@
 
 /** (0) Program configuration definitions. */
 #define LINESIZE 256
-#define NLCHR '\n'
-#define NLSTR "\n"
 #define MAX_VALUE 255
 #define P5 "P5"
 #define P2 "P2"

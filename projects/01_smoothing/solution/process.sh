@@ -8,16 +8,13 @@ gcc main.c -std=c99 -pedantic -Wall -lm -o main
 rm -rf $output
 mkdir $output
 
-# Do median filter
+# Do filters.
 for f in *.pgm
 do
-  ./main median 3 "${f}" "$output/median.${f}"
-done
-
-# Do average filter
-for f in *.pgm
-do
-  ./main average 3 "${f}" "$output/average.${f}"
+  ./main median 3 "${f}" "$output/median.3.${f}"
+  ./main median 5 "${f}" "$output/median.5.${f}"
+  ./main average 3 "${f}" "$output/average.3.${f}"
+  ./main average 5 "${f}" "$output/average.5.${f}"
 done
 
 # Copy source pgms.

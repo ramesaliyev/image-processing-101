@@ -1,0 +1,79 @@
+{
+  "total": 60,
+  "success": {
+    "rgb": 37,
+    "hue": 40
+  },
+  "rates": {
+    "rgb": 0.62,
+    "hue": 0.67
+  },
+  "categories": {
+    "elephant": {
+      "total": 10,
+      "success": {
+        "rgb": 7,
+        "hue": 6
+      },
+      "rates": {
+        "rgb": 0.7,
+        "hue": 0.6
+      }
+    },
+    "flamingo": {
+      "total": 10,
+      "success": {
+        "rgb": 3,
+        "hue": 7
+      },
+      "rates": {
+        "rgb": 0.3,
+        "hue": 0.7
+      }
+    },
+    "kangaroo": {
+      "total": 10,
+      "success": {
+        "rgb": 8,
+        "hue": 7
+      },
+      "rates": {
+        "rgb": 0.8,
+        "hue": 0.7
+      }
+    },
+    "leopards": {
+      "total": 10,
+      "success": {
+        "rgb": 10,
+        "hue": 8
+      },
+      "rates": {
+        "rgb": 1.0,
+        "hue": 0.8
+      }
+    },
+    "octopus": {
+      "total": 10,
+      "success": {
+        "rgb": 7,
+        "hue": 5
+      },
+      "rates": {
+        "rgb": 0.7,
+        "hue": 0.5
+      }
+    },
+    "seahorse": {
+      "total": 10,
+      "success": {
+        "rgb": 2,
+        "hue": 7
+      },
+      "rates": {
+        "rgb": 0.2,
+        "hue": 0.7
+      }
+    }
+  }
+}

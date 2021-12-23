@@ -389,30 +389,32 @@
 
 Bu ödevde resimlerin renk benzerliklerini değerlendirerek bir resme en
 çok benzeyen 5 adet resmi tespit eden program geliştirilmiştir. Bu rapor
-Yöntem, Uygulama ve Sonuç olmak üzere 3 kısımdan oluşmaktadır.
+\textbf{Yöntem}, \textbf{Uygulama} ve \textbf{Sonuç} olmak üzere 3
+kısımdan oluşmaktadır.
 
 \hypertarget{yuxf6ntem}{%
 \section{Yöntem}\label{yuxf6ntem}}
 
 Kurulan sistem temel olarak \textbf{Eğitim} ve \textbf{Test} olmak üzere
 iki ana adımdan oluşmaktadır. Her iki ana adımın da çıktıları sonraki
-çağrılarda daha hızlı çalışabilmeleri adına kayıt edilip
+çağrılarda daha hızlı çalışabilmeleri adına kayıt edilip geri
 yüklenebilmektedir. Girdi resimler değişmediği sürece çıktıların tekrar
 hesaplanmasına gerek yoktur.
 
 Sistemde her iki adımda da kullanılmak üzere iki ana yardımcı fonksiyon
 bulunmaktadır. Bunlardan ilki \textbf{RGB} renk değerlerinden
-\textbf{Hue} (H) değerini hesaplayan yardımcı fonksiyon, diğeri ise
-verilen bir resim için \textbf{R}, \textbf{G}, \textbf{B}, ve \textbf{H}
-(Hue) değerlerinin her biri için histogram hesabı yapan yardımcı
-fonksiyondur. Histogram hesaplama fonksiyonunun sözde kodu aşağıda
-verilmiştir. Histogram doğrudan hesaplanma sırasında normalize edilerek
-hesaplanmaktadır.
+\textbf{Hue} (H) değerini hesaplayan yardımcı fonksiyon (RGB2Hue),
+diğeri ise verilen bir resim için \textbf{R}, \textbf{G}, \textbf{B}, ve
+\textbf{H} (Hue) değerlerinin her biri için histogram hesabı yapan
+yardımcı fonksiyondur. Histogram hesaplama fonksiyonunun sözde kodu
+aşağıda verilmiştir. Histogram doğrudan hesaplanma sırasında normalize
+edilerek hesaplanmakta olduğundan sonradan normalize edilmesine ihtiyaç
+yoktur.
 
 \textcolor[RGB]{170,170,170}{\rule{\linewidth}{0.1pt}}
 \vspace*{-12pt}
 \begin{blockcode}
-R[], G[], B[], H[]
+R[256], G[256], B[256], H[360]
 unit = 1 / pixel_count
 for each pixel in image:
     r, g, b = pixel
@@ -425,27 +427,463 @@ for each pixel in image:
 \vspace*{-10pt}
 \textcolor[RGB]{170,170,170}{\rule{\linewidth}{0.1pt}}
 
-\textbf{Eğitim} adımında
+Bu çalışmada verilen
+\href{http://www.vision.caltech.edu/Image_Datasets/Caltech101/}{veri
+seti} içerisindeki 6 kategorinin (elephant, flamingo, kangaroo,
+leopards, octopus, seahorse) her birinden ilk 30 resim alınmıştır.
+Sadece octopus kategorisinden resimler alınırken 3 adet resmin (10, 15,
+17) RGB olmamasından dolayı bu 3 resim atlanmıştır. Daha sonra alınan bu
+resimlerin ilk 20 tanesi eğitim, son 10 tanesi de başarı ölçümü için
+kullanılmıştır.
 
-Yöntem bölümünde kurduğunuz sistemin ana modüllerinde yapılan işleri,
-işlem adımlarını yarı-kodlama ile göstererek kısaca anlatınız.
+\textbf{Eğitim} adımında tüm kategorilerin klasörleri gezilerek ilk 20
+tanesinin her kanal için (R, G, B, H) histogramları hesaplanmış ve
+saklanmıştır. Bu adım sonrasında elimizde veritabanımızı oluşturan
+toplam 120 adet histogram bulunmaktadır. Bu adımın sözde kodu aşağıda
+verilmiştir.
+
+\textcolor[RGB]{170,170,170}{\rule{\linewidth}{0.1pt}}
+\vspace*{-12pt}
+\begin{blockcode}
+db[]
+for first 20 image in each category
+    db.append({
+        'image': image,
+        'histograms': calculateHistograms(image)
+    })
+\end{blockcode}
+\vspace*{-10pt}
+\textcolor[RGB]{170,170,170}{\rule{\linewidth}{0.1pt}}
+
+\textbf{Test} adımında ise aynı işlem her kategoride kalan 10 resim için
+yapılmış ve her bir resmin histogramları, daha önce hesaplanmış olan 120
+histogram ile karşılaştırılmıştır. Bu karşılaştırma sonrasında renk
+uzayları histogramları arasında mesafenin en kısa bulunduğu resimlerden
+RGB ve Hue için her birinden 5 en yakın resim alınmıştır. Bu adımın
+sözde kodu aşağıda verilmiştir.
+
+\textcolor[RGB]{170,170,170}{\rule{\linewidth}{0.1pt}}
+\vspace*{-12pt}
+\begin{blockcode}
+mostsimilars[]
+for last 10 image in each category
+    (R, G, B, H) = calculateHistograms(image)
+    similars = {'rgb':[], 'hue':[]}
+    
+    for each item in db
+        (r, g, b, h) = item['histograms']
+        rgbSimilarity = 1 - (calcDistances([r,g,b], [R,G,B]) / math.sqrt(3))
+        hueSimilarity = 1 - calcDistances([h], [H])
+        
+        similars['rgb'].append([item['image'], rgbSimilarity])
+        similars['hue'].append([item['image'], hueSimilarity])
+        
+    mostsimilar_rgb = similars['rgb'].sort().takeFirst(5)
+    mostsimilar_hue = similars['hue'].sort().takeFirst(5)
+        
+    mostsimilars.append([image, mostsimilar_rgb, mostsimilar_hue])
+\end{blockcode}
+\vspace*{-10pt}
+\textcolor[RGB]{170,170,170}{\rule{\linewidth}{0.1pt}}
+
+Yukarıdaki sözde kodda histogramlar normalize halde olmasına rağmen, RGB
+için hesaplanan mesafe, 3 boyutlu uzay için yapıldığından, oluşabilecek
+maksimum mesafe \textbf{kök 3}'tür. Bu nedenle çıkan sonuç bu sayıya
+bölünerek normalize edilmiş 0-1 aralığında olması sağlanmıştır. Hue tek
+boyutlu olduğundan benzer bir işlemin onun için yapılmasına gerek
+yoktur.
+
+Bu adım sonrasında tüm resimler için en benzer resimler, her iki uzaya
+göre ayrı ayrı bulunmuş olur.
 
 \hypertarget{uygulama}{%
 \section{Uygulama}\label{uygulama}}
 
-Uygulama bölümünde her resim için (R,G,B) ve (H,S,V) uzayları için
-bulunan en benzer 5'er resmi raporunuza ekleyiniz(Çok yer tutmaması için
-resimleri küçülterek ekleyebilirsiniz). Eğer 5 resimden en az 1'i test
-resmi ile aynı sınıfta ise doğru sonuç, hiç benzer yok ise yanlış olarak
-hesaplayınız. Tanıma başarısını önce her örnek grubu için ayrı ayrı
-hesaplayınız. Daha sonra toplam başarı yüzdesini hesaplayınız.
+Her bir resim için bulunan en benzer resimler incelendiğinde, her
+kategori için tanıma başarıları RGB ve Hue için ayrı ayrı olmak üzere
+aşağıda tabloda verildiği gibi hesaplanmıştır. Her kategori için yapılan
+toplam test sayısı 10 olduğundan, buradaki yüzdeler aynı zamanda kaç
+resmin doğru olarak tanındığını göstermektedir. Örneğin \%70 başarıya
+sahip olan tanıma, 10 resim arasından 7 tanesinin doğru tanındığını
+göstermektedir.
 
-\hypertarget{sonuuxe7}{%
+\begin{longtable}[]{@{}lcc@{}}
+\toprule
+Kategori & RGB Başarısı & HUE Başarısı \\
+\midrule
+\endhead
+Elephant & 70\% & 60\% \\
+Flamingo & 30\% & 70\% \\
+Kangaroo & 80\% & 70\% \\
+Leopards & 100\% & 80\% \\
+Octopus & 70\% & 50\% \\
+SeaHorse & 20\% & 70\% \\
+\bottomrule
+\end{longtable}
+
+Toplam \textbf{60} test arasından, RGB benzerliği ile \textbf{37}
+tanesi, Hue benzerliği ile ise \textbf{40} tanesi doğru olarak
+bulunmuştur. Buradan hareketle, toplam başarı yüzdesi RGB için
+\textbf{\%62}, Hue için ise \textbf{\%67} olarak bulunur.
+
+Aşağıda her bir resim için bulunan en benzer resimler görsel olarak
+verilmiştir. Burada her bir resmin altında resmin \textbf{kategorisi /
+numarası} yazmaktadır. Örneğin ``elephant'' kategorisi altından dosya
+ismi ``image\_0023'' olan bir resim \textbf{elephant / 23} olarak
+görüntülenecektir.
+
+Sol tarafta yer alan resim teste tabi tutulan ana resim, ve sağ
+tarafında iki satır olarak yer alan resimler her iki uzaya göre bulunan
+en benzer resimlerdir. Burada üstteki satırda RGB uzayına göre en benzer
+resimler, alttaki satırda ise Hue değerine göre en benzer resimler
+verilmiştir.
+
+En benzer resimlerin üzerlerinde yazan değerler ana resme benzerlik
+değerleridir. Son olarak her ana resim üzerinde Success, Fail, RGB
+Success, Hue Success ibarelerinden biri yer almaktadır.
+\textbf{Success}; hem RGB hem de Hue'ya göre başarılı tanıma
+yapılabildiğini, \textbf{Fail} her ikisine göre de tanıma
+yapılamadığını, \textbf{RGB Success}; sadece RGB için başarılı sonuç
+alındığını, \textbf{Hue Success} ise sadece Hue için başarılı sonuç
+alındığını gösterir.
+
+Sonuçlar bir sonraki sayfadan itibaren verilmiştir. Raporun son bölümü,
+sonuçların ardında yer almaktadır.
+
+\pagebreak
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_0.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_1.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_2.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_3.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_4.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_5.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_6.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_7.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_8.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_9.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_10.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_11.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_12.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_13.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_14.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_15.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_16.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_17.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_18.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_19.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_20.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_21.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_22.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_23.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_24.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_25.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_26.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_27.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_28.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_29.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_30.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_31.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_32.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_33.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_34.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_35.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_36.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_37.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_38.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_39.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_40.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_41.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_42.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_43.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_44.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_45.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_46.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_47.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_48.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_49.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_50.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_51.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_52.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_53.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_54.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_55.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_56.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_57.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_58.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{report_files/report_2_59.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \hypertarget{sonuuxe7}{%
 \section{Sonuç}\label{sonuuxe7}}
 
-Sonuç bölümünde, resimler üzerinde elde ettiğiniz sonuçları iki renk
-uzayı sonuçlarına göre ayrı ayrı, daha sonra genel sonucu kısaca
-yorumlayarak değerlendiriniz.
+Elde edilen sonuçlar incelendiğinde her iki değere göre yapılan
+tanımalar ortalamalarına göre birbirlerine (RGB için \%62 ve Hue için
+\%67 ile) yakın gibi gözükseler de, RGB'ye göre yapılan tanımanın
+başarısının daha geniş bir aralıkta değişirken (20\% \textasciitilde{}
+100\%), Hue tanıma başarısının daha stabil olduğu ve daha dar bir
+aralıkta (50\% \textasciitilde{} 80\%) değiştiği, dolayısıyla RGB
+tanımalarında varyansın büyük, Hue tanımalarında ise küçük olduğu
+gözlemlenmiştir.
+
+Buradan hareketle renk paletinin birebir benzerlik gösterdiği resimlerde
+RGB ile tanımanın daha başarılı sonuçlar verdiğini, ancak renkler
+farklılaştığında, üç ayrı kanalın sonuca katkıda bulunmasından dolayı
+insan gözünün aynı olarak nitelendirmeyeceği resimleri birbirine benzer
+olarak nitelendirdiğini söyleyebiliriz. Bunun nedeni, renkler kanallara
+ayrıldığında aynı piksel üzerinde birleşen RGB değerlerinin oluşturduğu
+nihai renk bilgilerinin kaybolması olarak ifade edilebilir.
+
+Diğer yandan renklerin tek bir değer ile ifade edildiği Hue ile yapılan
+tanımalarda, renklerin doğru değerleri üzerinden benzerlik ölçümü
+yapıldığından, test sonuçlarının renk çeşitliliğinden daha az
+etkilendiği ve sonuçların daha doğal ve tutarlı olduğu söylenebilir.
+
+Genel olarak bu renk üzerinden görüntü erişimi çalışmasında sonuçlar
+incelendiğinde, her iki uzayın da farklı kategorideki resimlere yüksek
+benzerlik oranı verebildiği dolayısıyla çok da güvenilir olmadıkları
+gözlemlenmiştir. Örnekler incelendiğinde renk ile benzerlik aramanın
+nesneden (canlı türü) çok ortamın (orman, deniz, kumsal vs.) tanınması
+için kullanılabileceği, nesne tanımak için ek ölçütlere ihtiyaç olduğu
+sonucuna varılmıştır.
 
 
     % Add a bibliography block to the postdoc
